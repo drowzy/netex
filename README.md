@@ -1,6 +1,6 @@
 # Netex
 
-**TODO: Add description**
+Create Kubernetes controllers easily from Elixir
 
 ## Installation
 
@@ -18,4 +18,3 @@ end
 Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
 and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
 be found at [https://hexdocs.pm/netex](https://hexdocs.pm/netex).
-

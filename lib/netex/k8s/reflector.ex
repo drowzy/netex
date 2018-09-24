@@ -36,7 +36,6 @@ defmodule Netex.K8s.Reflector do
         %WatchEvent{object: object, type: type} = event,
         %State{controller: ctrl} = state
       ) do
-    Logger.info("#{__MODULE__} :: Received event with type #{inspect(type)} #{inspect(object)}")
 
     type =
       type
@@ -51,11 +50,11 @@ defmodule Netex.K8s.Reflector do
     case Netex.K8s.Client.list_and_watch(conn, &ctrl.list_fn/1, &ctrl.watch_fn/1, params) do
       {:ok, resource, pid} ->
         ctrl.handle_sync(resource)
-        Logger.info("#{__MODULE__} :: SYNC Ok! Resource: #{inspect(resource)}")
+        Logger.debug("#{__MODULE__} :: SYNC Ok! Resource: #{inspect(resource)}")
         %{state | watcher_pid: pid}
 
       err ->
-        Logger.error("#{__MODULE__} :: SYNC Failed Error: #{inspect(err)}")
+        Logger.error("#{__MODULE__} :: SYNC Failed. Error: #{inspect(err)}")
         state
     end
   end
