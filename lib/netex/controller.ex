@@ -4,25 +4,26 @@ defmodule Netex.Controller do
   @callback watch_fn(config :: Keyword.t()) :: (any -> any)
   @callback list_fn(config :: Keyword.t()) :: (any -> any)
 
-  @callback handle_sync(any) :: {:ok, any} | {:error, term}
-
-  @callback handle_added(WatchEvent.t()) :: {:ok, any} | {:error, term}
-  @callback handle_modified(WatchEvent.t()) :: {:ok, any} | {:error, term}
-  @callback handle_deleted(WatchEvent.t()) :: {:ok, any} | {:error, term}
+  @callback init(any) :: {:ok, any()} | {:error, term}
+  @callback handle_sync(any, any) :: {:ok, any} | {:error, term}
+  @callback handle_added(WatchEvent.t(), any) :: {:ok, any} | {:error, term}
+  @callback handle_modified(WatchEvent.t(), any) :: {:ok, any} | {:error, term}
+  @callback handle_deleted(WatchEvent.t(), any) :: {:ok, any} | {:error, term}
 
   defmacro __using__(opts) do
     quote bind_quoted: [opts: opts] do
       @behaviour Netex.Controller
 
-      def child_spec(opts) do
-        %{
+      def child_spec(arg) do
+        default = %{
           id: __MODULE__,
-          start: {__MODULE__, :start_link, opts}
+          start: {__MODULE__, :start_link, arg}
         }
+
+        Supervisor.child_spec(default, unquote(Macro.escape(opts)))
       end
 
-      def start_link(opts) do
-        %Kazan.Server{} = conn = Keyword.fetch!(opts, :conn)
+      def start_link(conn, opts) do
         Netex.K8s.Reflector.start_link(__MODULE__, conn, opts)
       end
 

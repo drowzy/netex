@@ -5,23 +5,34 @@ defmodule Netex.K8s.Reflector do
   alias Kazan.Models.Apimachinery.Meta.V1.WatchEvent
 
   defmodule State do
-    defstruct conn: nil, controller: nil, params: nil, watcher_pid: nil
+    defstruct conn: nil, mod: nil, params: nil, watcher_pid: nil, mod_state: nil
   end
 
-  def start_link(controller, conn, opts) do
+  def start_link(mod, conn, opts) do
+    GenServer.start_link(__MODULE__, {mod, conn, opts}, opts)
+  end
+
+  def init({mod, conn, opts}) do
     params = Keyword.get(opts, :params, [])
 
-    GenServer.start_link(__MODULE__, {controller, conn, params}, opts)
-  end
+    mod_opts = opts
+      |> Keyword.merge([conn: conn])
+      |> mod.init()
 
-  def init({controller, conn, params}) do
-    {:ok,
-     %State{
-       controller: controller,
-       conn: conn,
-       params: params,
-       watcher_pid: nil
-     }, {:continue, :ok}}
+    case mod_opts do
+      {:ok, mod_state} ->
+        {:ok,
+         %State{
+           mod: mod,
+           mod_state: mod_state,
+           conn: conn,
+           params: params,
+           watcher_pid: nil
+         }, {:continue, :ok}}
+
+      {:error, _error} ->
+        {:stop, :normal, :error}
+    end
   end
 
   def handle_continue(_, state) do
@@ -33,33 +44,33 @@ defmodule Netex.K8s.Reflector do
   end
 
   def handle_info(
-        %WatchEvent{object: object, type: type} = event,
-        %State{controller: ctrl} = state
+        %WatchEvent{type: type} = event,
+        %State{mod: mod, mod_state: mod_state} = state
       ) do
-
     type =
       type
       |> String.downcase()
       |> String.to_atom()
 
-    _ = process_event(type, ctrl, event)
-    {:noreply, state}
+    new_mod_state = process_event({type, event}, mod, mod_state)
+    {:noreply, %{state | mod_state: new_mod_state}}
   end
 
-  defp do_sync(%State{conn: conn, controller: ctrl, params: params} = state) do
-    case Netex.K8s.Client.list_and_watch(conn, &ctrl.list_fn/1, &ctrl.watch_fn/1, params) do
+  defp do_sync(%State{conn: conn, mod: mod, mod_state: mod_state, params: params} = state) do
+    case Netex.K8s.Client.list_and_watch(conn, &mod.list_fn/1, &mod.watch_fn/1, params) do
       {:ok, resource, pid} ->
-        ctrl.handle_sync(resource)
-        Logger.debug("#{__MODULE__} :: SYNC Ok! Resource: #{inspect(resource)}")
-        %{state | watcher_pid: pid}
+        new_mod_state = mod.handle_sync(resource, mod_state)
 
-      err ->
-        Logger.error("#{__MODULE__} :: SYNC Failed. Error: #{inspect(err)}")
+        %{state | watcher_pid: pid, mod_state: new_mod_state}
+      _err ->
         state
     end
   end
 
-  defp process_event(:added, controller, event), do: controller.handle_added(event)
-  defp process_event(:modified, controller, event), do: controller.handle_modified(event)
-  defp process_event(:deleted, controller, event), do: controller.handle_deleted(event)
+  defp process_event({:added, event}, mod, mod_state), do: mod.handle_added(event, mod_state)
+
+  defp process_event({:modified, event}, mod, mod_state),
+    do: mod.handle_modified(event, mod_state)
+
+  defp process_event({:deleted, event}, mod, mod_state), do: mod.handle_deleted(event, mod_state)
 end
