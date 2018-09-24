@@ -14,6 +14,13 @@ defmodule Netex.Controller do
     quote bind_quoted: [opts: opts] do
       @behaviour Netex.Controller
 
+      def child_spec(opts) do
+        %{
+          id: __MODULE__,
+          start: {__MODULE__, :start_link, opts}
+        }
+      end
+
       def start_link(opts) do
         %Kazan.Server{} = conn = Keyword.fetch!(opts, :conn)
         Netex.K8s.Reflector.start_link(__MODULE__, conn, opts)
