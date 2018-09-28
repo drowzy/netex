@@ -1,7 +1,7 @@
 defmodule Netex.Controller do
   alias Kazan.Models.Apimachinery.Meta.V1.WatchEvent
 
-  @callback watch_fn(config :: Keyword.t()) :: (any -> any)
+  @callback watch_fn(resource :: any, config :: Keyword.t()) :: (any -> any)
   @callback list_fn(config :: Keyword.t()) :: (any -> any)
 
   @callback init(any) :: {:ok, any()} | {:error, term}
