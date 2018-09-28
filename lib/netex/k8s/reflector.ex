@@ -57,7 +57,7 @@ defmodule Netex.K8s.Reflector do
   end
 
   defp do_sync(%State{conn: conn, mod: mod, mod_state: mod_state, params: params} = state) do
-    case Netex.K8s.Client.list_and_watch(conn, &mod.list_fn/1, &mod.watch_fn/1, params) do
+    case Netex.K8s.Client.list_and_watch(conn, &mod.list_fn/1, &mod.watch_fn/2, params) do
       {:ok, resource, pid} ->
         new_mod_state = mod.handle_sync(resource, mod_state)
 
