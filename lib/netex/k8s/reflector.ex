@@ -2,7 +2,7 @@ defmodule Netex.K8s.Reflector do
   use GenServer
   require Logger
 
-  alias Kazan.Models.Apimachinery.Meta.V1.WatchEvent
+  alias Kazan.Watcher
 
   defmodule State do
     defstruct conn: nil, mod: nil, params: nil, watcher_pid: nil, mod_state: nil
@@ -44,13 +44,9 @@ defmodule Netex.K8s.Reflector do
   end
 
   def handle_info(
-        %WatchEvent{type: type} = event,
+        %Watcher.Event{type: type} = event,
         %State{mod: mod, mod_state: mod_state} = state
       ) do
-    type =
-      type
-      |> String.downcase()
-      |> String.to_atom()
 
     new_mod_state = process_event({type, event}, mod, mod_state)
     {:noreply, %{state | mod_state: new_mod_state}}
