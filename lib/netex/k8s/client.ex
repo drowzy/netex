@@ -1,7 +1,7 @@
 defmodule Netex.K8s.Client do
-  def list_and_watch(mod, %Kazan.Server{} = conn, list_fn, watch_fn, opts) do
+  def list_and_watch(mod, req_runner, %Kazan.Server{} = conn, list_fn, watch_fn, opts) do
     with req <- list_fn.(opts),
-         {:ok, resource} <- Kazan.run(req, server: conn),
+         {:ok, resource} <- req_runner.run(req, server: conn),
          {:ok, pid} <- start_watcher(mod, conn, watch_fn, resource, opts) do
       {:ok, resource, pid}
     else

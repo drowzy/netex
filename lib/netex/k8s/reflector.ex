@@ -5,7 +5,13 @@ defmodule Netex.K8s.Reflector do
   alias Kazan.Watcher
 
   defmodule State do
-    defstruct conn: nil, mod: nil, params: nil, watcher_pid: nil, mod_state: nil
+    defstruct conn: nil,
+              mod: nil,
+              params: nil,
+              watcher_pid: nil,
+              mod_state: nil,
+              watcher_mod: nil,
+              req_runner: nil
   end
 
   def start_link(mod, conn, opts) do
@@ -15,9 +21,11 @@ defmodule Netex.K8s.Reflector do
   def init({mod, conn, opts}) do
     params = Keyword.get(opts, :params, [])
     watcher_mod = Keyword.get(opts, :watcher_mod, Kazan.Watcher)
+    req_runner = Keyword.get(opts, :req_runner, Kazan)
 
-    mod_opts = opts
-      |> Keyword.merge([conn: conn])
+    mod_opts =
+      opts
+      |> Keyword.merge(conn: conn)
       |> mod.init()
 
     case mod_opts do
@@ -29,6 +37,7 @@ defmodule Netex.K8s.Reflector do
            conn: conn,
            params: params,
            watcher_mod: watcher_mod,
+           req_runner: req_runner,
            watcher_pid: nil
          }, {:continue, :ok}}
 
@@ -49,17 +58,33 @@ defmodule Netex.K8s.Reflector do
         %Watcher.Event{type: type} = event,
         %State{mod: mod, mod_state: mod_state} = state
       ) do
-
     new_mod_state = process_event({type, event}, mod, mod_state)
     {:noreply, %{state | mod_state: new_mod_state}}
   end
 
-  defp do_sync(%State{conn: conn, mod: mod, watcher_mods: watcher_mod, mod_state: mod_state, params: params} = state) do
-    case Netex.K8s.Client.list_and_watch(watcher_mod, conn, &mod.list_fn/1, &mod.watch_fn/2, params) do
+  defp do_sync(
+         %State{
+           conn: conn,
+           mod: mod,
+           watcher_mod: watcher_mod,
+           req_runner: req_runner,
+           mod_state: mod_state,
+           params: params
+         } = state
+       ) do
+    case Netex.K8s.Client.list_and_watch(
+           watcher_mod,
+           req_runner,
+           conn,
+           &mod.list_fn/1,
+           &mod.watch_fn/2,
+           params
+         ) do
       {:ok, resource, pid} ->
         new_mod_state = mod.handle_sync(resource, mod_state)
 
         %{state | watcher_pid: pid, mod_state: new_mod_state}
+
       _err ->
         state
     end
