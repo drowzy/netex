@@ -14,6 +14,7 @@ defmodule Netex.K8s.Reflector do
 
   def init({mod, conn, opts}) do
     params = Keyword.get(opts, :params, [])
+    watcher_mod = Keyword.get(opts, :watcher_mod, Kazan.Watcher)
 
     mod_opts = opts
       |> Keyword.merge([conn: conn])
@@ -27,6 +28,7 @@ defmodule Netex.K8s.Reflector do
            mod_state: mod_state,
            conn: conn,
            params: params,
+           watcher_mod: watcher_mod,
            watcher_pid: nil
          }, {:continue, :ok}}
 
@@ -52,8 +54,8 @@ defmodule Netex.K8s.Reflector do
     {:noreply, %{state | mod_state: new_mod_state}}
   end
 
-  defp do_sync(%State{conn: conn, mod: mod, mod_state: mod_state, params: params} = state) do
-    case Netex.K8s.Client.list_and_watch(conn, &mod.list_fn/1, &mod.watch_fn/2, params) do
+  defp do_sync(%State{conn: conn, mod: mod, watcher_mods: watcher_mod, mod_state: mod_state, params: params} = state) do
+    case Netex.K8s.Client.list_and_watch(watcher_mod, conn, &mod.list_fn/1, &mod.watch_fn/2, params) do
       {:ok, resource, pid} ->
         new_mod_state = mod.handle_sync(resource, mod_state)
 
