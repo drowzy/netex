@@ -11,11 +11,17 @@ defmodule Netex.K8s.Client do
   end
 
   defp start_watcher(mod, %Kazan.Server{} = conn, watch_fn, resource, opts) do
+    watcher_opts =
+      [
+        server: conn,
+        resource_version: resource.metadata.resource_version,
+        send_to: self()
+      ]
+      |> Keyword.merge(opts)
+
     mod.start_link(
       watch_fn.(resource, opts),
-      server: conn,
-      resource_version: resource.metadata.resource_version,
-      send_to: self()
+      watcher_opts
     )
   end
 end
