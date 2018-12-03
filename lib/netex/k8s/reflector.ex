@@ -85,7 +85,8 @@ defmodule Netex.K8s.Reflector do
 
         %{state | watcher_pid: pid, mod_state: new_mod_state}
 
-      _err ->
+      err ->
+        Logger.error("#{__MODULE__} :: Sync error #{inspect err}")
         state
     end
   end
