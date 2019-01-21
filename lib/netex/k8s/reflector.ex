@@ -54,6 +54,10 @@ defmodule Netex.K8s.Reflector do
     {:noreply, state}
   end
 
+  def handle_info(%Watcher.Event{type: :gone}, state) do
+    {:noreply, do_sync(state)}
+  end
+
   def handle_info(
         %Watcher.Event{type: type} = event,
         %State{mod: mod, mod_state: mod_state} = state
